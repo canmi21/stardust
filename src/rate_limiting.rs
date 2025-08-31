@@ -85,7 +85,7 @@ where
         let ip = extract_client_ip(&request).unwrap_or_else(|| "127.0.0.1".parse().unwrap());
         let mut store = self.state.store.lock().unwrap();
         let now = Instant::now();
-        let limit: u8 = 2;
+        let limit: u8 = 10;
         let window = Duration::from_secs(1);
         let record = store.entry(ip).or_insert_with(|| (now, 0));
 

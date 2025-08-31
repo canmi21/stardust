@@ -1,5 +1,6 @@
 // src/main.rs
 
+mod auth;
 mod bootstrap;
 mod cors;
 mod rate_limiting;
@@ -7,6 +8,7 @@ mod response;
 mod router;
 
 use crate::{
+    auth::auth_middleware,
     cors::cors_middleware,
     rate_limiting::{RateLimitLayer, RateLimiterState},
 };
@@ -19,14 +21,16 @@ async fn main() {
     dotenv().ok();
     set_log_level(LogLevel::Debug);
 
-    // Create state for middleware layers
     let rate_limiter_state = RateLimiterState::new();
 
-    // Create the router
+    // Create the main application router.
     let app_router = router::create_router();
 
-    // Build the final application by applying middleware layers
+    // Build the final app by applying middleware layers.
+    // The auth middleware is applied directly to the router, protecting all its routes.
+    // The request processing order is: cors -> rate_limit -> auth -> router handler.
     let app = app_router
+        .layer(middleware::from_fn(auth_middleware))
         .layer(RateLimitLayer::new(rate_limiter_state))
         .layer(middleware::from_fn(cors_middleware));
 
