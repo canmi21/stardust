@@ -1,26 +1,20 @@
 // src/auth.rs
 
-use crate::response;
+use crate::{response, AppState};
 use axum::{
-    extract::Request,
+    extract::{Request, State},
     http::{header, StatusCode},
     middleware::Next,
     response::Response,
 };
-use std::env;
 
-pub async fn auth_middleware(req: Request, next: Next) -> Response {
-    // Attempt to get the API_TOKEN from environment variables.
-    let api_token = match env::var("API_TOKEN") {
-        Ok(token) => token,
-        Err(_) => {
-            // This is a server configuration error, so we return a 500.
-            return response::error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Server configuration error: API_TOKEN not set.",
-            );
-        }
-    };
+pub async fn auth_middleware(
+    State(state): State<AppState>,
+    req: Request,
+    next: Next,
+) -> Response {
+    // Get the API_TOKEN from the shared application state.
+    let api_token = &state.api_token;
 
     // Extract the 'Authorization' header from the request.
     let auth_header = req
@@ -31,7 +25,7 @@ pub async fn auth_middleware(req: Request, next: Next) -> Response {
     match auth_header {
         Some(header_value) => {
             if let Some(token) = header_value.strip_prefix("Bearer ") {
-                if token == api_token {
+                if token == api_token.as_ref() {
                     // Token is valid, proceed with the request.
                     next.run(req).await
                 } else {
@@ -52,3 +46,4 @@ pub async fn auth_middleware(req: Request, next: Next) -> Response {
         }
     }
 }
+
