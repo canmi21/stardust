@@ -6,23 +6,25 @@ mod cors;
 mod rate_limiting;
 mod response;
 mod router;
+mod sqlite;
 
 use crate::{
     auth::auth_middleware,
     cors::cors_middleware,
     rate_limiting::{RateLimitLayer, RateLimiterState},
+    sqlite::initialize_databases,
 };
 use axum::middleware;
 use base64::{engine::general_purpose, Engine as _};
 use dotenvy::dotenv;
 use fancy_log::{log, set_log_level, LogLevel};
 use rand::RngCore;
-use std::{fs, io::Write, path::Path, sync::Arc};
+use std::{fs, io::Write, path::Path, sync::{Arc, RwLock}};
 
 // The application's shared state, now holding the API token.
 #[derive(Clone)]
 pub struct AppState {
-    api_token: Arc<String>,
+    api_token: Arc<RwLock<String>>,
 }
 
 /// Sets up the required directory structure and loads or creates the API token.
@@ -97,21 +99,27 @@ async fn main() {
     // Setup file structure and load the token at startup.
     let api_token = setup_and_load_token();
 
+    // Initialize databases
+    if let Err(e) = initialize_databases().await {
+        log(LogLevel::Error, &format!("Failed to initialize databases: {}", e));
+        return;
+    }
+
     // Create shared state.
     let app_state = AppState {
-        api_token: Arc::new(api_token),
+        api_token: Arc::new(RwLock::new(api_token)),
     };
     let rate_limiter_state = RateLimiterState::new();
-    let app_router = router::create_router();
 
-    // Build the final app by applying middleware layers.
-    let app = app_router
+    // Build the final app by applying middleware layers and providing state.
+    let app = router::create_router()
         .layer(middleware::from_fn_with_state(
-            app_state,
+            app_state.clone(),
             auth_middleware,
         ))
         .layer(RateLimitLayer::new(rate_limiter_state))
-        .layer(middleware::from_fn(cors_middleware));
+        .layer(middleware::from_fn(cors_middleware))
+        .with_state(app_state);
 
     log(LogLevel::Info, "Starting server...");
 
@@ -120,4 +128,3 @@ async fn main() {
         log(LogLevel::Error, &error_message);
     }
 }
-

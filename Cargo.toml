@@ -17,3 +17,4 @@ serde_json = { version = "1", features = ["preserve_order"] }
 tower-http = { version = "0.6", features = ["cors"] }
 rand = "0.9"
 base64 = "0.22"
+tokio-rusqlite = "0.6"
