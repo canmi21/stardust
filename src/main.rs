@@ -7,6 +7,7 @@ mod rate_limiting;
 mod response;
 mod router;
 mod sqlite;
+mod passwd;
 
 use crate::{
     auth::auth_middleware,
