@@ -4,3 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+fancy-log = "0.1"
+axum = { version = "0.8", features = ["macros"] }
+tokio = { version = "1", features = ["full"] }
+http-body = "1"
+futures = "0.3"
+tower = "0.5"
+dotenvy = "0.15"
+chrono = "0.4.41"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+tower-http = { version = "0.6", features = ["cors"] }
