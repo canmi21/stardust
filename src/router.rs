@@ -1,22 +1,36 @@
 // src/router.rs
 
-use crate::{passwd, response, AppState};
+use crate::{auth::auth_middleware, passwd, AppState};
 use axum::{
-    response::Response,
-    routing::{get, post},
+    middleware,
+    routing::post,
     Router,
 };
-use serde_json::json;
+use tower_http::services::ServeDir;
 
 /// Creates the main application router.
-/// All routes defined here will be protected by the auth middleware applied in main.rs.
+/// API routes are protected by auth middleware.
+/// Static files are served without authentication, including index.html at "/".
 pub fn create_router() -> Router<AppState> {
-    Router::<AppState>::new()
-        .route("/", get(root_get))
+    // Create API routes with auth middleware
+    let api_routes = Router::<AppState>::new()
         .route("/v1/token/reload", post(passwd::token_reload))
-}
+        .layer(middleware::from_fn_with_state(
+            // We need a dummy state here, will be replaced when with_state is called
+            AppState {
+                api_token: std::sync::Arc::new(std::sync::RwLock::new(String::new())),
+            },
+            auth_middleware,
+        ));
 
-// This handler is now protected and will only be reached if the token is valid.
-async fn root_get() -> Response {
-    response::success(Some(json!({ "service": "PONG" })))
+    // Combine API routes with static file service (including index.html at "/")
+    Router::<AppState>::new()
+        .merge(api_routes)
+        .fallback_service(
+            ServeDir::new("/opt/stardust/public")
+                .append_index_html_on_directories(true)
+                .precompressed_gzip()
+                .precompressed_br()
+                .precompressed_deflate(),
+        )
 }

@@ -14,7 +14,8 @@ dotenvy = "0.15"
 chrono = "0.4.41"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
-tower-http = { version = "0.6", features = ["cors"] }
+tower-http = { version = "0.6", features = ["cors", "fs"] }
 rand = "0.9"
 base64 = "0.22"
 tokio-rusqlite = "0.6"
+rust-embed = "8.7.2"

@@ -8,9 +8,9 @@ mod response;
 mod router;
 mod sqlite;
 mod passwd;
+mod public;
 
 use crate::{
-    auth::auth_middleware,
     cors::cors_middleware,
     rate_limiting::{RateLimitLayer, RateLimiterState},
     sqlite::initialize_databases,
@@ -100,6 +100,12 @@ async fn main() {
     // Setup file structure and load the token at startup.
     let api_token = setup_and_load_token();
 
+    // Setup public directory and extract embedded files
+    if let Err(e) = public::setup_public_directory() {
+        log(LogLevel::Error, &format!("Failed to setup public directory: {}", e));
+        return;
+    }
+
     // Initialize databases
     if let Err(e) = initialize_databases().await {
         log(LogLevel::Error, &format!("Failed to initialize databases: {}", e));
@@ -113,11 +119,8 @@ async fn main() {
     let rate_limiter_state = RateLimiterState::new();
 
     // Build the final app by applying middleware layers and providing state.
+    // Note: auth_middleware is now applied inside router::create_router() only to API routes
     let app = router::create_router()
-        .layer(middleware::from_fn_with_state(
-            app_state.clone(),
-            auth_middleware,
-        ))
         .layer(RateLimitLayer::new(rate_limiter_state))
         .layer(middleware::from_fn(cors_middleware))
         .with_state(app_state);
